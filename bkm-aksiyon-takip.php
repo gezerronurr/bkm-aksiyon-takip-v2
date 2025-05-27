@@ -73,57 +73,8 @@ class BKM_Aksiyon_Takip {
         add_action('wp_ajax_complete_gorev', [$this, 'handle_complete_gorev']);
         add_action('wp_ajax_load_gorev_detay', [$this, 'handle_load_gorev_detay']);
     
-// Yeni shortcode ve görev AJAX handler'larını ekleyin
-    add_shortcode('aksiyon_takipx', [$this, 'render_aksiyon_takipx_shortcode']);
-    
-    // Frontend AJAX handlers
-    add_action('wp_ajax_bkm_login', [$this, 'handle_login']);
-    add_action('wp_ajax_nopriv_bkm_login', [$this, 'handle_login']);
-    add_action('wp_ajax_bkm_load_tasks', [$this, 'handle_load_tasks']);
-    add_action('wp_ajax_bkm_save_task', [$this, 'handle_save_task']);
-    add_action('wp_ajax_bkm_complete_task', [$this, 'handle_complete_task']);
-    add_action('wp_ajax_bkm_get_task', [$this, 'handle_get_task']);
-}
-
-public function render_aksiyon_takipx_shortcode($atts) {
-    if (!is_user_logged_in()) {
-        return $this->render_login_form();
-    }
-
-    wp_enqueue_style('bkm-aksiyon-takipx-style');
-    wp_enqueue_script('bkm-aksiyon-takipx-script');
-
-    ob_start();
-    require_once BKM_AKSIYON_PLUGIN_DIR . 'public/partials/aksiyon-takipx-template.php';
-    return ob_get_clean();
-}
-
-private function render_login_form() {
-    ob_start();
-    ?>
-    <div class="bkm-login-container">
-        <form id="bkmLoginForm" method="post">
-            <h3><?php _e('Giriş Yapın', 'bkm-aksiyon-takip'); ?></h3>
-            
-            <div class="form-group">
-                <label for="username"><?php _e('Kullanıcı Adı:', 'bkm-aksiyon-takip'); ?></label>
-                <input type="text" name="username" id="username" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="password"><?php _e('Şifre:', 'bkm-aksiyon-takip'); ?></label>
-                <input type="password" name="password" id="password" required>
-            </div>
-            
-            <div class="form-error" style="display: none;"></div>
-            
-            <button type="submit" class="bkm-btn bkm-btn-primary">
-                <?php _e('Giriş Yap', 'bkm-aksiyon-takip'); ?>
-            </button>
-        </form>
-    </div>
-    <?php
-    return ob_get_clean();
+require_once BKM_AKSIYON_PLUGIN_DIR . 'public/shortcodes/aksiyon-takipx-shortcode.php';
+    $this->shortcodes = new BKM_Aksiyon_TakipX_Shortcode('bkm-aksiyon-takip', BKM_AKSIYON_VERSION);
 }
     public function add_admin_menu() {
         // Ana menü
@@ -314,37 +265,19 @@ private function render_login_form() {
             BKM_AKSIYON_VERSION
         );
 
-// Font Awesome
-    wp_enqueue_style(
-        'fontawesome',
-        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css',
-        [],
-        '5.15.4'
-    );
+        wp_enqueue_script(
+            'bkm-public-js',
+            BKM_AKSIYON_PLUGIN_URL . 'public/js/public.js',
+            ['jquery'],
+            BKM_AKSIYON_VERSION,
+            true
+        );
 
-    // Yeni style ve script kayıtları
-    wp_enqueue_style(
-        'bkm-aksiyon-takipx-style',
-        BKM_AKSIYON_PLUGIN_URL . 'public/css/aksiyon-takipx.css',
-        ['fontawesome'],
-        BKM_AKSIYON_VERSION
-    );
-
-    wp_enqueue_script(
-        'bkm-aksiyon-takipx-script',
-        BKM_AKSIYON_PLUGIN_URL . 'public/js/aksiyon-takipx.js',
-        ['jquery'],
-        BKM_AKSIYON_VERSION,
-        true
-    );
-
-    wp_localize_script('bkm-aksiyon-takipx-script', 'bkm_ajax', [
-        'ajaxurl' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('bkm_ajax_nonce'),
-        'current_user' => $this->current_user_login,
-        'current_date' => $this->current_date
-    ]);
-}
+        wp_localize_script('bkm-public-js', 'bkm_ajax', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('bkm_public_nonce')
+        ]);
+    }
 
     public function activate() {
         global $wpdb;
@@ -367,7 +300,7 @@ private function render_login_form() {
             kapanma_tarihi date DEFAULT NULL,
             performans_id bigint(20) NOT NULL,
             ilerleme_durumu tinyint(3) NOT NULL DEFAULT 0,
-            notlar text,
+            notlar text DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -377,10 +310,30 @@ private function render_login_form() {
         ) $charset_collate;";
         dbDelta($sql);
 
+        // Görevler tablosu
+        $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_gorevler (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            aksiyon_id bigint(20) NOT NULL,
+            icerik text NOT NULL,
+            baslangic_tarihi date NOT NULL,
+            hedef_bitis_tarihi date NOT NULL,
+            gercek_bitis_tarihi date DEFAULT NULL,
+            sorumlu_id bigint(20) NOT NULL,
+            ilerleme_durumu tinyint(3) NOT NULL DEFAULT 0,
+            olusturan_id bigint(20) NOT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY aksiyon_id (aksiyon_id),
+            KEY sorumlu_id (sorumlu_id),
+            KEY olusturan_id (olusturan_id)
+        ) $charset_collate;";
+        dbDelta($sql);
+
         // Kategoriler tablosu
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_kategoriler (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            kategori_adi varchar(100) NOT NULL,
+            kategori_adi varchar(255) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -391,7 +344,7 @@ private function render_login_form() {
         // Performanslar tablosu
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_performanslar (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            performans_adi varchar(100) NOT NULL,
+            performans_adi varchar(255) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -414,24 +367,6 @@ private function render_login_form() {
         ) $charset_collate;";
         dbDelta($sql);
 
-// Görevler tablosu
-    $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_tasks (
-        id bigint(20) NOT NULL AUTO_INCREMENT,
-        content text NOT NULL,
-        start_date date NOT NULL,
-        assigned_user bigint(20) NOT NULL,
-        target_date date NOT NULL,
-        progress int(3) NOT NULL DEFAULT '0',
-        completion_date datetime DEFAULT NULL,
-        created_by bigint(20) NOT NULL,
-        created_at datetime NOT NULL,
-        updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id),
-        KEY assigned_user (assigned_user),
-        KEY created_by (created_by)
-    ) $charset_collate;";
-    dbDelta($sql);
-
         // Varsayılan kategorileri ekle
         $default_kategoriler = [
             'Yazılım',
@@ -442,14 +377,11 @@ private function render_login_form() {
         ];
 
         foreach ($default_kategoriler as $kategori) {
-        $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}bkm_kategoriler WHERE kategori_adi = %s", $kategori));
-        if (!$exists) {
             $wpdb->insert(
                 "{$wpdb->prefix}bkm_kategoriler",
                 ['kategori_adi' => $kategori],
                 ['%s']
             );
-	}
         }
 
         // Varsayılan performansları ekle
@@ -462,14 +394,11 @@ private function render_login_form() {
         ];
 
         foreach ($default_performanslar as $performans) {
-        $exists = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}bkm_performanslar WHERE performans_adi = %s", $performans));
-        if (!$exists) {
             $wpdb->insert(
                 "{$wpdb->prefix}bkm_performanslar",
                 ['performans_adi' => $performans],
                 ['%s']
             );
-	}
         }
 
         // Aktivasyon zamanını kaydet
@@ -550,162 +479,7 @@ private function render_login_form() {
     }
 
     // AJAX Handlers
- 
- public function handle_login() {
-    check_ajax_referer('bkm_ajax_nonce', 'nonce');
-    
-    $username = sanitize_user($_POST['username']);
-    $password = $_POST['password'];
-    
-    $user = wp_authenticate($username, $password);
-    
-    if (is_wp_error($user)) {
-        wp_send_json_error('Geçersiz kullanıcı adı veya şifre.');
-    }
-    
-    $result = wp_signon([
-        'user_login' => $username,
-        'user_password' => $password,
-        'remember' => true
-    ]);
-    
-    if (is_wp_error($result)) {
-        wp_send_json_error('Giriş yapılırken bir hata oluştu.');
-    }
-    
-    wp_send_json_success('Giriş başarılı.');
-}
-
-public function handle_load_tasks() {
-    check_ajax_referer('bkm_ajax_nonce', 'nonce');
-    
-    if (!is_user_logged_in()) {
-        wp_send_json_error('Giriş yapmalısınız.');
-    }
-    
-    global $wpdb;
-    $current_user_id = get_current_user_id();
-    $is_admin = current_user_can('manage_options');
-    $is_editor = current_user_can('edit_posts');
-    
-    $tasks = $wpdb->get_results(
-        "SELECT t.*, u.display_name as assigned_user_name 
-        FROM {$wpdb->prefix}bkm_tasks t 
-        LEFT JOIN {$wpdb->prefix}users u ON t.assigned_user = u.ID 
-        ORDER BY t.created_at DESC"
-    );
-    
-    $formatted_tasks = array_map(function($task) use ($current_user_id, $is_admin, $is_editor) {
-        return [
-            'id' => $task->id,
-            'content' => $task->content,
-            'start_date' => $task->start_date,
-            'assigned_user' => $task->assigned_user,
-            'assigned_user_name' => $task->assigned_user_name,
-            'target_date' => $task->target_date,
-            'progress' => $task->progress,
-            'completed' => !empty($task->completion_date),
-            'can_edit' => $is_admin || $is_editor || $task->created_by == $current_user_id,
-            'can_complete' => $task->assigned_user == $current_user_id || $is_admin
-        ];
-    }, $tasks);
-    
-    wp_send_json_success($formatted_tasks);
-}
-
-public function handle_save_task() {
-    check_ajax_referer('bkm_ajax_nonce', 'nonce');
-    
-    if (!current_user_can('edit_posts')) {
-        wp_send_json_error('Yetkiniz yok.');
-    }
-    
-    global $wpdb;
-    $task_id = isset($_POST['task_id']) ? intval($_POST['task_id']) : 0;
-    
-    $data = [
-        'content' => sanitize_textarea_field($_POST['content']),
-        'start_date' => sanitize_text_field($_POST['start_date']),
-        'assigned_user' => intval($_POST['assigned_user']),
-        'target_date' => sanitize_text_field($_POST['target_date']),
-        'progress' => intval($_POST['progress'])
-    ];
-    
-    if ($task_id > 0) {
-        $wpdb->update(
-            "{$wpdb->prefix}bkm_tasks",
-            $data,
-            ['id' => $task_id],
-            array_fill(0, count($data), '%s'),
-            ['%d']
-        );
-    } else {
-        $data['created_by'] = get_current_user_id();
-        $data['created_at'] = current_time('mysql');
-        
-        $wpdb->insert(
-            "{$wpdb->prefix}bkm_tasks",
-            $data,
-            array_fill(0, count($data), '%s')
-        );
-        $task_id = $wpdb->insert_id;
-    }
-    
-    wp_send_json_success('Görev kaydedildi.');
-}
-
-public function handle_complete_task() {
-    check_ajax_referer('bkm_ajax_nonce', 'nonce');
-    
-    global $wpdb;
-    $task_id = intval($_POST['task_id']);
-    
-    $task = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}bkm_tasks WHERE id = %d",
-        $task_id
-    ));
-    
-    if (!$task) {
-        wp_send_json_error('Görev bulunamadı.');
-    }
-    
-    if (!current_user_can('manage_options') && $task->assigned_user != get_current_user_id()) {
-        wp_send_json_error('Bu görevi tamamlama yetkiniz yok.');
-    }
-    
-    $wpdb->update(
-        "{$wpdb->prefix}bkm_tasks",
-        [
-            'completion_date' => current_time('mysql'),
-            'progress' => 100
-        ],
-        ['id' => $task_id],
-        ['%s', '%d'],
-        ['%d']
-    );
-    
-    wp_send_json_success('Görev tamamlandı.');
-}
-
-public function handle_get_task() {
-    check_ajax_referer('bkm_ajax_nonce', 'nonce');
-    
-    global $wpdb;
-    $task_id = intval($_POST['task_id']);
-    
-    $task = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}bkm_tasks WHERE id = %d",
-        $task_id
-    ));
-    
-    if (!$task) {
-        wp_send_json_error('Görev bulunamadı.');
-    }
-    
-    wp_send_json_success($task);
-}  
-
-public function handle_save_aksiyon() {
+    public function handle_save_aksiyon() {
         check_ajax_referer('bkm_admin_nonce', 'nonce');
 
         if (!current_user_can('edit_posts')) {
@@ -800,7 +574,7 @@ public function handle_save_aksiyon() {
     }
 
     public function handle_load_aksiyonlar() {
-        check_ajax_referer('bkm_aksiyon_takipx_nonce', 'nonce');
+        check_ajax_referer('bkm_admin_nonce', 'nonce');
 
         if (!current_user_can('read')) {
             wp_send_json_error(['message' => __('Yetkiniz yok', 'bkm-aksiyon-takip')]);
@@ -816,11 +590,6 @@ public function handle_save_aksiyon() {
         // WHERE koşullarını oluştur
         $where = [];
         $where_values = [];
-
-// Kullanıcıya özel filtre ekle
-$current_user_id = get_current_user_id();
-$where[] = "FIND_IN_SET(%d, a.sorumlular)";
-$where_values[] = $current_user_id;
 
         if (!empty($filters['kategori'])) {
             $where[] = 'a.kategori_id = %d';
@@ -1132,62 +901,68 @@ $where_values[] = $current_user_id;
     }
 
     public function handle_save_gorev() {
-        check_ajax_referer('bkm_aksiyon_takipx_nonce', 'gorev_nonce');
+        check_ajax_referer('bkm_admin_nonce', 'nonce');
 
         if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => __('Yetkiniz yok', 'bkm-aksiyon-takip')]);
+            wp_send_json_error(['message' => __('Bu işlem için yetkiniz yok.', 'bkm-aksiyon-takip')]);
         }
 
         global $wpdb;
-
-        $gorev_id = isset($_POST['gorev_id']) ? intval($_POST['gorev_id']) : 0;
-        $aksiyon_id = isset($_POST['aksiyon_id']) ? intval($_POST['aksiyon_id']) : 0;
         
-        if ($aksiyon_id <= 0) {
-            wp_send_json_error(['message' => __('Geçersiz aksiyon ID', 'bkm-aksiyon-takip')]);
+        // Form verilerini al ve temizle
+        $aksiyon_id = intval($_POST['aksiyon_id']);
+        $gorev_icerigi = sanitize_textarea_field($_POST['gorev_icerigi']);
+        $baslangic_tarihi = sanitize_text_field($_POST['baslangic_tarihi']);
+        $hedef_bitis_tarihi = sanitize_text_field($_POST['hedef_bitis_tarihi']);
+        $sorumlu_kisi = intval($_POST['sorumlu_kisi']);
+        $ilerleme_durumu = intval($_POST['ilerleme_durumu']);
+
+        // Aksiyon ID kontrolü
+        $aksiyon = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}bkm_aksiyonlar WHERE id = %d",
+            $aksiyon_id
+        ));
+
+        if (!$aksiyon) {
+            wp_send_json_error(['message' => __('Aksiyon bulunamadı.', 'bkm-aksiyon-takip')]);
+            return;
         }
 
-        $data = [
-            'aksiyon_id' => $aksiyon_id,
-            'icerik' => sanitize_textarea_field($_POST['gorev_icerik']),
-            'baslangic_tarihi' => sanitize_text_field($_POST['baslangic_tarihi']),
-            'sorumlu_id' => intval($_POST['sorumlu_id']),
-            'hedef_bitis_tarihi' => sanitize_text_field($_POST['hedef_bitis_tarihi']),
-            'ilerleme_durumu' => intval($_POST['ilerleme_durumu']),
-            'updated_at' => current_time('mysql')
-        ];
-
-        if ($gorev_id > 0) {
-            // Mevcut görevi güncelle
-            $result = $wpdb->update(
-                "{$wpdb->prefix}bkm_gorevler",
-                $data,
-                ['id' => $gorev_id],
-                array_fill(0, count($data), '%s'),
-                ['%d']
-            );
-        } else {
-            // Yeni görev ekle
-            $data['created_at'] = current_time('mysql');
-            
-            $result = $wpdb->insert(
-                "{$wpdb->prefix}bkm_gorevler",
-                $data,
-                array_fill(0, count($data), '%s')
-            );
-            $gorev_id = $wpdb->insert_id;
-        }
+        // Görev kaydetme
+        $result = $wpdb->insert(
+            "{$wpdb->prefix}bkm_gorevler",
+            [
+                'aksiyon_id' => $aksiyon_id,
+                'icerik' => $gorev_icerigi,
+                'baslangic_tarihi' => $baslangic_tarihi,
+                'hedef_bitis_tarihi' => $hedef_bitis_tarihi,
+                'sorumlu_id' => $sorumlu_kisi,
+                'ilerleme_durumu' => $ilerleme_durumu,
+                'olusturan_id' => get_current_user_id(),
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            ],
+            [
+                '%d', // aksiyon_id
+                '%s', // icerik
+                '%s', // baslangic_tarihi
+                '%s', // hedef_bitis_tarihi
+                '%d', // sorumlu_id
+                '%d', // ilerleme_durumu
+                '%d', // olusturan_id
+                '%s', // created_at
+                '%s'  // updated_at
+            ]
+        );
 
         if ($result === false) {
-            wp_send_json_error(['message' => __('Veritabanı hatası oluştu', 'bkm-aksiyon-takip')]);
+            wp_send_json_error(['message' => __('Görev kaydedilirken bir hata oluştu.', 'bkm-aksiyon-takip')]);
+            return;
         }
 
-        // Görev sahibine email gönder
-        $this->send_gorev_notification_email($gorev_id, $gorev_id > 0 ? 'update' : 'create');
-
         wp_send_json_success([
-            'message' => __('Görev başarıyla kaydedildi', 'bkm-aksiyon-takip'),
-            'gorev_id' => $gorev_id
+            'message' => __('Görev başarıyla kaydedildi.', 'bkm-aksiyon-takip'),
+            'gorev_id' => $wpdb->insert_id
         ]);
     }
 
@@ -1448,6 +1223,11 @@ $where_values[] = $current_user_id;
         $headers = ['Content-Type: text/html; charset=UTF-8'];
         
         return wp_mail($gorev->sorumlu_email, $subject, $message, $headers);
+    }
+
+    private function register_shortcodes() {
+        require_once plugin_dir_path(__FILE__) . 'public/shortcodes/aksiyon-takipx-shortcode.php';
+        new BKM_Aksiyon_TakipX_Shortcode($this->get_plugin_name(), $this->get_version());
     }
 }
 

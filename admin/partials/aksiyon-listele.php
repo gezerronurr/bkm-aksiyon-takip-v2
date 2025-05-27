@@ -200,69 +200,163 @@ $current_user_id = get_current_user_id();
 
                 $aksiyonlar = $wpdb->get_results($query);
 
-                foreach ($aksiyonlar as $aksiyon) {
-                    // Önem derecesi sınıfı
-                    $onem_class = '';
+                foreach ($aksiyonlar as $aksiyon):
+                    $onem_derecesi_class = '';
+                    $onem_derecesi_text = '';
+                    $onem_derecesi_icon = '';
+
                     switch ($aksiyon->onem_derecesi) {
                         case 1:
-                            $onem_class = 'status-badge status-active';
-                            $onem_text = 'Yüksek';
+                            $onem_derecesi_class = 'high';
+                            $onem_derecesi_text = __('Yüksek', 'bkm-aksiyon-takip');
+                            $onem_derecesi_icon = 'exclamation-circle';
                             break;
                         case 2:
-                            $onem_class = 'status-badge status-pending';
-                            $onem_text = 'Orta';
+                            $onem_derecesi_class = 'medium';
+                            $onem_derecesi_text = __('Orta', 'bkm-aksiyon-takip');
+                            $onem_derecesi_icon = 'exclamation-triangle';
                             break;
                         case 3:
-                            $onem_class = 'status-badge status-inactive';
-                            $onem_text = 'Düşük';
+                            $onem_derecesi_class = 'low';
+                            $onem_derecesi_text = __('Düşük', 'bkm-aksiyon-takip');
+                            $onem_derecesi_icon = 'info-circle';
                             break;
                     }
 
-                    // İlerleme durumu sınıfı
-                    $ilerleme_class = '';
-                    if ($aksiyon->ilerleme_durumu >= 100) {
-                        $ilerleme_class = 'status-badge status-active';
-                    } elseif ($aksiyon->ilerleme_durumu >= 50) {
-                        $ilerleme_class = 'status-badge status-pending';
-                    } else {
-                        $ilerleme_class = 'status-badge status-inactive';
+                    $hedef_gecikme_class = '';
+                    if (!$aksiyon->kapanma_tarihi && strtotime($aksiyon->hedef_tarih) < current_time('timestamp')) {
+                        $hedef_gecikme_class = 'gecikme';
                     }
-
-                    // Sorumluların listesini hazırla
-                    $sorumlular = $aksiyon->sorumlular_liste ? $aksiyon->sorumlular_liste : '-';
-                    ?>
-                    <tr>
-                        <td>#<?php echo $aksiyon->id; ?></td>
-                        <td><?php echo esc_html($aksiyon->kategori_adi); ?></td>
-                        <td><?php echo esc_html($aksiyon->tanimlayan_adi); ?></td>
-                        <td><?php echo esc_html($sorumlular); ?></td>
-                        <td><?php echo date('d.m.Y', strtotime($aksiyon->acilma_tarihi)); ?></td>
-                        <td><?php echo date('d.m.Y', strtotime($aksiyon->hedef_tarih)); ?></td>
-                        <td><span class="<?php echo $onem_class; ?>"><?php echo $onem_text; ?></span></td>
-                        <td>
-                            <span class="<?php echo $ilerleme_class; ?>">
-                                %<?php echo $aksiyon->ilerleme_durumu; ?>
-                            </span>
-                        </td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="<?php echo admin_url('admin.php?page=bkm-aksiyon-ekle&id=' . $aksiyon->id); ?>" 
-                                   class="bkm-btn btn-info btn-sm" 
-                                   title="Düzenle">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button type="button" 
-                                        class="bkm-btn btn-danger btn-sm delete-aksiyon" 
-                                        data-id="<?php echo $aksiyon->id; ?>" 
-                                        title="Sil">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php
-                }
                 ?>
+                <tr>
+                    <td>#<?php echo $aksiyon->id; ?></td>
+                    <td><?php echo esc_html($aksiyon->kategori_adi); ?></td>
+                    <td><?php echo esc_html($aksiyon->tanimlayan_adi); ?></td>
+                    <td><?php echo esc_html($aksiyon->sorumlular_liste); ?></td>
+                    <td><?php echo date('d.m.Y', strtotime($aksiyon->acilma_tarihi)); ?></td>
+                    <td><?php echo date('d.m.Y', strtotime($aksiyon->hedef_tarih)); ?></td>
+                    <td>
+                        <?php
+                        $onem_class = '';
+                        $onem_text = '';
+                        $onem_icon = '';
+                        
+                        switch ($aksiyon->onem_derecesi) {
+                            case 1:
+                                $onem_class = 'high';
+                                $onem_text = __('Yüksek', 'bkm-aksiyon-takip');
+                                $onem_icon = 'exclamation-circle';
+                                break;
+                            case 2:
+                                $onem_class = 'medium';
+                                $onem_text = __('Orta', 'bkm-aksiyon-takip');
+                                $onem_icon = 'exclamation-triangle';
+                                break;
+                            case 3:
+                                $onem_class = 'low';
+                                $onem_text = __('Düşük', 'bkm-aksiyon-takip');
+                                $onem_icon = 'info-circle';
+                                break;
+                        }
+                        ?>
+                        <span class="onem-badge <?php echo $onem_class; ?>">
+                            <i class="fas fa-<?php echo $onem_icon; ?>"></i> <?php echo $onem_text; ?>
+                        </span>
+                    </td>
+                    <td>
+                        <?php
+                        $ilerleme_class = '';
+                        if ($aksiyon->ilerleme_durumu == 100) {
+                            $ilerleme_class = 'completed';
+                        } elseif ($aksiyon->ilerleme_durumu >= 50) {
+                            $ilerleme_class = 'in-progress';
+                        } else {
+                            $ilerleme_class = 'pending';
+                        }
+                        ?>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar <?php echo $ilerleme_class; ?>" style="width: <?php echo $aksiyon->ilerleme_durumu; ?>%"></div>
+                            <span class="progress-text"><?php echo $aksiyon->ilerleme_durumu; ?>%</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="<?php echo admin_url('admin.php?page=bkm-aksiyon-ekle&id=' . $aksiyon->id); ?>" 
+                               class="bkm-btn btn-info btn-sm" 
+                               title="<?php esc_attr_e('Düzenle', 'bkm-aksiyon-takip'); ?>">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="bkm-btn btn-primary btn-sm gorev-ekle-btn" 
+                                    data-id="<?php echo esc_attr($aksiyon->id); ?>" 
+                                    title="<?php esc_attr_e('Görev Ekle', 'bkm-aksiyon-takip'); ?>">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button type="button" 
+                                    class="bkm-btn btn-danger btn-sm delete-aksiyon" 
+                                    data-id="<?php echo $aksiyon->id; ?>" 
+                                    title="<?php esc_attr_e('Sil', 'bkm-aksiyon-takip'); ?>">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="gorev-form-row" id="gorev-form-<?php echo esc_attr($aksiyon->id); ?>" style="display: none;">
+                    <td colspan="9">
+                        <div class="gorev-form-container">
+                            <h4><?php _e('Yeni Görev Ekle', 'bkm-aksiyon-takip'); ?></h4>
+                            <form class="gorev-ekle-form" data-aksiyon-id="<?php echo esc_attr($aksiyon->id); ?>">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="gorev_icerigi_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('Görev İçeriği', 'bkm-aksiyon-takip'); ?></label>
+                                        <textarea name="gorev_icerigi" id="gorev_icerigi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control" required></textarea>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="baslangic_tarihi_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('Başlangıç Tarihi', 'bkm-aksiyon-takip'); ?></label>
+                                        <input type="date" name="baslangic_tarihi" id="baslangic_tarihi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control datepicker" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="hedef_bitis_tarihi_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('Hedef Bitiş Tarihi', 'bkm-aksiyon-takip'); ?></label>
+                                        <input type="date" name="hedef_bitis_tarihi" id="hedef_bitis_tarihi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control datepicker" required>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="sorumlu_kisi_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('Sorumlu Kişi', 'bkm-aksiyon-takip'); ?></label>
+                                        <select name="sorumlu_kisi" id="sorumlu_kisi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control select2" required>
+                                            <option value=""><?php _e('Seçiniz...', 'bkm-aksiyon-takip'); ?></option>
+                                            <?php
+                                            $users = get_users(['role__in' => ['administrator', 'editor', 'author']]);
+                                            foreach ($users as $user) {
+                                                echo '<option value="' . esc_attr($user->ID) . '">' . esc_html($user->display_name) . '</option>';
+                                            }
+                                            ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="ilerleme_durumu_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('İlerleme Durumu (%)', 'bkm-aksiyon-takip'); ?></label>
+                                        <div class="progress-input-container">
+                                            <input type="range" name="ilerleme_durumu" id="ilerleme_durumu_<?php echo esc_attr($aksiyon->id); ?>" 
+                                                   class="progress-slider" min="0" max="100" value="0" required>
+                                            <div class="progress-display">
+                                                <div class="progress">
+                                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                                </div>
+                                                <span class="progress-value">0%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="submit" class="bkm-btn btn-primary"><?php _e('Kaydet', 'bkm-aksiyon-takip'); ?></button>
+                                    <button type="button" class="bkm-btn btn-secondary gorev-form-iptal"><?php _e('İptal', 'bkm-aksiyon-takip'); ?></button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>

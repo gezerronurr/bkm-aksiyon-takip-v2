@@ -418,4 +418,138 @@ jQuery(document).ready(function($) {
 
     // Sayfa yüklendiğinde mevcut seçimleri göster
     $('#onem_derecesi, #ilerleme_durumu').trigger('change');
+
+    // Görev ekleme butonu tıklama olayı
+    $(document).on('click', '.gorev-ekle-btn', function(e) {
+        e.preventDefault();
+        const aksiyonId = $(this).data('id');
+        const formRow = $('#gorev-form-' + aksiyonId);
+        
+        // Diğer açık formları kapat
+        $('.gorev-form-row').not(formRow).slideUp();
+        
+        // Bu formu aç/kapat
+        formRow.slideToggle();
+        
+        // Form alanlarını başlat
+        const form = formRow.find('.gorev-ekle-form');
+        form[0].reset();
+        
+        // Tarih alanlarını flatpickr ile başlat
+        const dateInputs = form.find('input[type="date"]');
+        dateInputs.each(function() {
+            if (!$(this).hasClass('flatpickr-input')) {
+                flatpickr(this, {
+                    dateFormat: "Y-m-d",
+                    locale: "tr",
+                    allowInput: true,
+                    minDate: "today"
+                });
+            }
+        });
+        
+        // Select2'yi başlat
+        const selects = form.find('select');
+        selects.each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    width: '100%',
+                    placeholder: 'Seçiniz...',
+                    allowClear: true,
+                    dropdownParent: formRow
+                });
+            }
+        });
+    });
+
+    // Görev formu iptal butonu
+    $(document).on('click', '.gorev-form-iptal', function(e) {
+        e.preventDefault();
+        const formRow = $(this).closest('.gorev-form-row');
+        formRow.slideUp();
+    });
+
+    // Görev ekleme formu gönderimi
+    $(document).on('submit', '.gorev-ekle-form', function(e) {
+        e.preventDefault();
+        const $form = $(this);
+        const aksiyonId = $form.data('aksiyon-id');
+        
+        if (!validateGorevForm($form)) {
+            return;
+        }
+        
+        const formData = {
+            action: 'save_gorev',
+            nonce: bkm_admin.nonce,
+            aksiyon_id: aksiyonId,
+            gorev_icerigi: $form.find('[name="gorev_icerigi"]').val(),
+            baslangic_tarihi: $form.find('[name="baslangic_tarihi"]').val(),
+            hedef_bitis_tarihi: $form.find('[name="hedef_bitis_tarihi"]').val(),
+            sorumlu_kisi: $form.find('[name="sorumlu_kisi"]').val(),
+            ilerleme_durumu: $form.find('[name="ilerleme_durumu"]').val()
+        };
+
+        $.ajax({
+            url: bkm_admin.ajax_url,
+            type: 'POST',
+            data: formData,
+            beforeSend: function() {
+                showLoader();
+                $form.find('button').prop('disabled', true);
+            },
+            success: function(response) {
+                if (response.success) {
+                    showNotification('success', response.data.message || 'Görev başarıyla eklendi');
+                    $form[0].reset();
+                    $('#gorev-form-' + aksiyonId).slideUp();
+                    
+                    // Sayfayı yeniden yükle
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showNotification('error', response.data.message || 'Bir hata oluştu');
+                }
+            },
+            error: function(xhr, status, error) {
+                showNotification('error', 'Bir hata oluştu: ' + error);
+            },
+            complete: function() {
+                hideLoader();
+                $form.find('button').prop('disabled', false);
+            }
+        });
+    });
+
+    // Görev formu validasyonu
+    function validateGorevForm($form) {
+        let isValid = true;
+        const requiredFields = $form.find('[required]');
+        
+        requiredFields.each(function() {
+            const field = $(this);
+            const value = field.val();
+            
+            if (!value || (Array.isArray(value) && !value.length)) {
+                isValid = false;
+                field.addClass('error');
+                showFieldError(field, 'Bu alan zorunludur');
+            } else {
+                field.removeClass('error');
+                removeFieldError(field);
+            }
+        });
+
+        // Tarih kontrolleri
+        const baslangicTarihi = new Date($form.find('[name="baslangic_tarihi"]').val());
+        const hedefBitisTarihi = new Date($form.find('[name="hedef_bitis_tarihi"]').val());
+
+        if (hedefBitisTarihi < baslangicTarihi) {
+            isValid = false;
+            showFieldError($form.find('[name="hedef_bitis_tarihi"]'), 'Hedef bitiş tarihi, başlangıç tarihinden önce olamaz');
+        }
+
+        return isValid;
+    }
 });

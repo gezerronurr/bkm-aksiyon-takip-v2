@@ -55,9 +55,6 @@ jQuery(document).ready(function($) {
     // İlerleme çubuğunu başlat
     initializeProgressBar();
 
-// Aksiyonları sayfa yüklenince yükle
-loadAksiyonlar();
-
     // Aksiyon detay modalını aç
     $(document).on('click', '.aksiyon-detay-btn', function(e) {
         e.preventDefault();
@@ -79,11 +76,11 @@ loadAksiyonlar();
     // Aksiyon silme işlemi
     function deleteAksiyon(aksiyonId) {
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'delete_aksiyon',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 aksiyon_id: aksiyonId
             },
             beforeSend: function() {
@@ -155,11 +152,11 @@ loadAksiyonlar();
         };
 
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'load_aksiyonlar',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 filters: filters
             },
             beforeSend: function() {
@@ -237,11 +234,11 @@ loadAksiyonlar();
     // Aksiyon detayı yükle
     function loadAksiyonDetay(aksiyonId) {
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'load_aksiyon_detay',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 aksiyon_id: aksiyonId
             },
             beforeSend: function() {
@@ -326,11 +323,11 @@ loadAksiyonlar();
         };
 
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'export_aksiyonlar',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 format: format,
                 filters: filters
             },
@@ -379,11 +376,11 @@ loadAksiyonlar();
     // Aksiyon durumunu güncelle
     function updateAksiyonStatus(aksiyonId, status) {
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'update_aksiyon_status',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 aksiyon_id: aksiyonId,
                 status: status
             },
@@ -410,11 +407,11 @@ loadAksiyonlar();
     // Aksiyon satırını güncelle
     function updateAksiyonRow(aksiyonId) {
         $.ajax({
-            url: bkm_ajax_takipx.ajax_url,
+            url: bkm_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'get_aksiyon_row',
-                nonce: bkm_ajax_takipx.nonce,
+                nonce: bkm_ajax.nonce,
                 aksiyon_id: aksiyonId
             },
             success: function(response) {
