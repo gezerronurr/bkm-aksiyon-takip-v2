@@ -300,7 +300,7 @@ require_once BKM_AKSIYON_PLUGIN_DIR . 'public/shortcodes/aksiyon-takipx-shortcod
             kapanma_tarihi date DEFAULT NULL,
             performans_id bigint(20) NOT NULL,
             ilerleme_durumu tinyint(3) NOT NULL DEFAULT 0,
-            notlar text DEFAULT NULL,
+            notlar text,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -310,30 +310,10 @@ require_once BKM_AKSIYON_PLUGIN_DIR . 'public/shortcodes/aksiyon-takipx-shortcod
         ) $charset_collate;";
         dbDelta($sql);
 
-        // Görevler tablosu
-        $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_gorevler (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
-            aksiyon_id bigint(20) NOT NULL,
-            icerik text NOT NULL,
-            baslangic_tarihi date NOT NULL,
-            hedef_bitis_tarihi date NOT NULL,
-            gercek_bitis_tarihi date DEFAULT NULL,
-            sorumlu_id bigint(20) NOT NULL,
-            ilerleme_durumu tinyint(3) NOT NULL DEFAULT 0,
-            olusturan_id bigint(20) NOT NULL,
-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY aksiyon_id (aksiyon_id),
-            KEY sorumlu_id (sorumlu_id),
-            KEY olusturan_id (olusturan_id)
-        ) $charset_collate;";
-        dbDelta($sql);
-
         // Kategoriler tablosu
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_kategoriler (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            kategori_adi varchar(255) NOT NULL,
+            kategori_adi varchar(100) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -344,7 +324,7 @@ require_once BKM_AKSIYON_PLUGIN_DIR . 'public/shortcodes/aksiyon-takipx-shortcod
         // Performanslar tablosu
         $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}bkm_performanslar (
             id bigint(20) NOT NULL AUTO_INCREMENT,
-            performans_adi varchar(255) NOT NULL,
+            performans_adi varchar(100) NOT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -901,68 +881,62 @@ require_once BKM_AKSIYON_PLUGIN_DIR . 'public/shortcodes/aksiyon-takipx-shortcod
     }
 
     public function handle_save_gorev() {
-        check_ajax_referer('bkm_admin_nonce', 'nonce');
+        check_ajax_referer('bkm_aksiyon_takipx_nonce', 'gorev_nonce');
 
         if (!current_user_can('edit_posts')) {
-            wp_send_json_error(['message' => __('Bu işlem için yetkiniz yok.', 'bkm-aksiyon-takip')]);
+            wp_send_json_error(['message' => __('Yetkiniz yok', 'bkm-aksiyon-takip')]);
         }
 
         global $wpdb;
+
+        $gorev_id = isset($_POST['gorev_id']) ? intval($_POST['gorev_id']) : 0;
+        $aksiyon_id = isset($_POST['aksiyon_id']) ? intval($_POST['aksiyon_id']) : 0;
         
-        // Form verilerini al ve temizle
-        $aksiyon_id = intval($_POST['aksiyon_id']);
-        $gorev_icerigi = sanitize_textarea_field($_POST['gorev_icerigi']);
-        $baslangic_tarihi = sanitize_text_field($_POST['baslangic_tarihi']);
-        $hedef_bitis_tarihi = sanitize_text_field($_POST['hedef_bitis_tarihi']);
-        $sorumlu_kisi = intval($_POST['sorumlu_kisi']);
-        $ilerleme_durumu = intval($_POST['ilerleme_durumu']);
-
-        // Aksiyon ID kontrolü
-        $aksiyon = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}bkm_aksiyonlar WHERE id = %d",
-            $aksiyon_id
-        ));
-
-        if (!$aksiyon) {
-            wp_send_json_error(['message' => __('Aksiyon bulunamadı.', 'bkm-aksiyon-takip')]);
-            return;
+        if ($aksiyon_id <= 0) {
+            wp_send_json_error(['message' => __('Geçersiz aksiyon ID', 'bkm-aksiyon-takip')]);
         }
 
-        // Görev kaydetme
-        $result = $wpdb->insert(
-            "{$wpdb->prefix}bkm_gorevler",
-            [
-                'aksiyon_id' => $aksiyon_id,
-                'icerik' => $gorev_icerigi,
-                'baslangic_tarihi' => $baslangic_tarihi,
-                'hedef_bitis_tarihi' => $hedef_bitis_tarihi,
-                'sorumlu_id' => $sorumlu_kisi,
-                'ilerleme_durumu' => $ilerleme_durumu,
-                'olusturan_id' => get_current_user_id(),
-                'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql')
-            ],
-            [
-                '%d', // aksiyon_id
-                '%s', // icerik
-                '%s', // baslangic_tarihi
-                '%s', // hedef_bitis_tarihi
-                '%d', // sorumlu_id
-                '%d', // ilerleme_durumu
-                '%d', // olusturan_id
-                '%s', // created_at
-                '%s'  // updated_at
-            ]
-        );
+        $data = [
+            'aksiyon_id' => $aksiyon_id,
+            'icerik' => sanitize_textarea_field($_POST['gorev_icerik']),
+            'baslangic_tarihi' => sanitize_text_field($_POST['baslangic_tarihi']),
+            'sorumlu_id' => intval($_POST['sorumlu_id']),
+            'hedef_bitis_tarihi' => sanitize_text_field($_POST['hedef_bitis_tarihi']),
+            'ilerleme_durumu' => intval($_POST['ilerleme_durumu']),
+            'updated_at' => current_time('mysql')
+        ];
+
+        if ($gorev_id > 0) {
+            // Mevcut görevi güncelle
+            $result = $wpdb->update(
+                "{$wpdb->prefix}bkm_gorevler",
+                $data,
+                ['id' => $gorev_id],
+                array_fill(0, count($data), '%s'),
+                ['%d']
+            );
+        } else {
+            // Yeni görev ekle
+            $data['created_at'] = current_time('mysql');
+            
+            $result = $wpdb->insert(
+                "{$wpdb->prefix}bkm_gorevler",
+                $data,
+                array_fill(0, count($data), '%s')
+            );
+            $gorev_id = $wpdb->insert_id;
+        }
 
         if ($result === false) {
-            wp_send_json_error(['message' => __('Görev kaydedilirken bir hata oluştu.', 'bkm-aksiyon-takip')]);
-            return;
+            wp_send_json_error(['message' => __('Veritabanı hatası oluştu', 'bkm-aksiyon-takip')]);
         }
 
+        // Görev sahibine email gönder
+        $this->send_gorev_notification_email($gorev_id, $gorev_id > 0 ? 'update' : 'create');
+
         wp_send_json_success([
-            'message' => __('Görev başarıyla kaydedildi.', 'bkm-aksiyon-takip'),
-            'gorev_id' => $wpdb->insert_id
+            'message' => __('Görev başarıyla kaydedildi', 'bkm-aksiyon-takip'),
+            'gorev_id' => $gorev_id
         ]);
     }
 

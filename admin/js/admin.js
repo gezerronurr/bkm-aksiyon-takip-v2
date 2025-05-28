@@ -286,43 +286,17 @@ jQuery(document).ready(function($) {
         showNotification('info', 'Form temizlendi');
     });
 
-    // DataTables ve Görev Ekle butonları için ana fonksiyon
-    function initializeTableAndButtons() {
-        console.log('Tablo ve butonlar başlatılıyor...');
-        
-        // DataTables başlatma
-        var table = $('#aksiyonlar-table');
-        if (table.length) {
-            try {
-                var dataTable = table.DataTable({
-                    "processing": true,
-                    "pageLength": 25,
-                    "order": [[0, 'desc']],
-                    "language": {
-                        "url": "//cdn.datatables.net/plug-ins/1.10.24/i18n/Turkish.json"
-                    },
-                    "columnDefs": [
-                        {
-                            "targets": 'no-sort',
-                            "orderable": false
-                        }
-                    ],
-                    "drawCallback": function(settings) {
-                        initializeFormElements();
-                    }
-                });
-            } catch (error) {
-                console.error('DataTables başlatma hatası:', error);
-            }
-        } else {
-            console.log('Tablo bulunamadı');
-        }
+    // DataTables başlatma
+    if ($('#aksiyonlar-table').length) {
+        $('#aksiyonlar-table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Turkish.json'
+            },
+            pageLength: 25,
+            order: [[0, 'desc']],
+            responsive: true
+        });
     }
-
-    // Sayfa yüklendiğinde başlat
-    $(document).ready(function() {
-        initializeTableAndButtons();
-    });
 
     // Filtre işlemleri
     if ($('#filter-form').length) {
@@ -444,106 +418,4 @@ jQuery(document).ready(function($) {
 
     // Sayfa yüklendiğinde mevcut seçimleri göster
     $('#onem_derecesi, #ilerleme_durumu').trigger('change');
-
-    // Görev ekle butonu tıklama olayı
-    $(document).on('click', '.gorev-ekle-btn', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const aksiyonId = $(this).data('id');
-        const formRow = $(`#gorev-form-${aksiyonId}`);
-        
-        // Diğer açık form satırlarını kapat
-        $('.gorev-form-row').not(formRow).slideUp();
-        
-        // Tıklanan aksiyonun form satırını aç/kapat
-        formRow.slideToggle();
-
-        // Form elemanlarını başlat
-        setTimeout(function() {
-            initializeFormElements();
-        }, 100);
-    });
-
-    // Görev formu iptal butonu
-    $(document).on('click', '.gorev-form-iptal', function(e) {
-        e.preventDefault();
-        $(this).closest('.gorev-form-row').slideUp();
-    });
-
-    // Görev ekleme formu gönderimi
-    $(document).on('submit', '.gorev-ekle-form', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const aksiyonId = form.data('aksiyon-id');
-        
-        $.ajax({
-            url: bkm_admin.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'add_gorev',
-                nonce: bkm_admin.nonce,
-                aksiyon_id: aksiyonId,
-                gorev_icerigi: form.find('[name="gorev_icerigi"]').val(),
-                baslangic_tarihi: form.find('[name="baslangic_tarihi"]').val(),
-                sorumlu_kisi: form.find('[name="sorumlu_kisi"]').val(),
-                hedef_bitis_tarihi: form.find('[name="hedef_bitis_tarihi"]').val(),
-                ilerleme_durumu: form.find('[name="ilerleme_durumu"]').val() || 0
-            },
-            beforeSend: function() {
-                showLoader();
-                form.find('button').prop('disabled', true);
-            },
-            success: function(response) {
-                if (response.success) {
-                    showNotification('success', response.data.message || 'Görev başarıyla eklendi');
-                    form[0].reset();
-                    form.closest('.gorev-form-row').slideUp();
-                    // Sayfayı yeniden yükle
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1500);
-                } else {
-                    showNotification('error', response.data.message || 'Bir hata oluştu');
-                }
-            },
-            error: function(xhr, status, error) {
-                showNotification('error', 'Bir hata oluştu: ' + error);
-            },
-            complete: function() {
-                hideLoader();
-                form.find('button').prop('disabled', false);
-            }
-        });
-    });
-
-    // Form elemanlarını başlatma fonksiyonu
-    function initializeFormElements() {
-        // Select2
-        if (typeof $.fn.select2 !== 'undefined') {
-            $('.select2').each(function() {
-                if (!$(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2({
-                        width: '100%',
-                        placeholder: 'Seçiniz...',
-                        allowClear: true
-                    });
-                }
-            });
-        }
-
-        // Flatpickr
-        if (typeof flatpickr !== 'undefined') {
-            $('input[type="date"]').each(function() {
-                if (!$(this).hasClass('flatpickr-input')) {
-                    flatpickr(this, {
-                        dateFormat: "Y-m-d",
-                        locale: "tr",
-                        allowInput: true,
-                        minDate: "today"
-                    });
-                }
-            });
-        }
-    }
 });

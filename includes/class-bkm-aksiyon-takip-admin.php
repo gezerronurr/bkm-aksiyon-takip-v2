@@ -49,9 +49,6 @@ class Bkm_Aksiyon_Takip_Admin {
         // Admin menüsünü ekle
         add_action('admin_menu', array($this, 'add_admin_menu'));
 
-// Mevcut constructor içeriğine bu satırı ekleyin
-        add_action('wp_ajax_add_gorev', array($this, 'handle_add_gorev'));
-        
         // AJAX handler'ları kaydet
         $this->register_ajax_handlers();
     }
@@ -366,47 +363,6 @@ class Bkm_Aksiyon_Takip_Admin {
             'urgent_count' => $urgent_count,
             'my_tasks' => $my_tasks
         ));
-    }
-
- public function handle_add_gorev() {
-        check_ajax_referer('bkm_admin_nonce', 'nonce');
-        
-        if (!current_user_can('edit_posts')) {
-            wp_send_json_error(array('message' => 'Yetkiniz yok'));
-        }
-        
-        $aksiyon_id = isset($_POST['aksiyon_id']) ? intval($_POST['aksiyon_id']) : 0;
-        $gorev_icerigi = isset($_POST['gorev_icerigi']) ? sanitize_text_field($_POST['gorev_icerigi']) : '';
-        $baslangic_tarihi = isset($_POST['baslangic_tarihi']) ? sanitize_text_field($_POST['baslangic_tarihi']) : '';
-        $sorumlu_kisi = isset($_POST['sorumlu_kisi']) ? intval($_POST['sorumlu_kisi']) : 0;
-        $hedef_bitis_tarihi = isset($_POST['hedef_bitis_tarihi']) ? sanitize_text_field($_POST['hedef_bitis_tarihi']) : '';
-        $ilerleme_durumu = isset($_POST['ilerleme_durumu']) ? intval($_POST['ilerleme_durumu']) : 0;
-        
-        if (!$aksiyon_id || !$gorev_icerigi) {
-            wp_send_json_error(array('message' => 'Gerekli alanları doldurun'));
-        }
-        
-        global $wpdb;
-        
-        $result = $wpdb->insert(
-            $wpdb->prefix . 'bkm_gorevler',
-            array(
-                'aksiyon_id' => $aksiyon_id,
-                'gorev_icerigi' => $gorev_icerigi,
-                'baslangic_tarihi' => $baslangic_tarihi,
-                'sorumlu_kisi' => $sorumlu_kisi,
-                'hedef_bitis_tarihi' => $hedef_bitis_tarihi,
-                'ilerleme_durumu' => $ilerleme_durumu,
-                'olusturma_tarihi' => current_time('mysql')
-            ),
-            array('%d', '%s', '%s', '%d', '%s', '%d', '%s')
-        );
-        
-        if ($result === false) {
-            wp_send_json_error(array('message' => 'Görev eklenirken bir hata oluştu'));
-        }
-        
-        wp_send_json_success(array('message' => 'Görev başarıyla eklendi'));
     }
 
     /**
