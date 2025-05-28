@@ -324,10 +324,10 @@ $current_user_id = get_current_user_id();
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="sorumlu_kisi_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('Sorumlu Kişi', 'bkm-aksiyon-takip'); ?></label>
-                                        <select name="sorumlu_kisi" id="sorumlu_kisi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control select2" required>
+                                        <select name="sorumlu_kisi" id="sorumlu_kisi_<?php echo esc_attr($aksiyon->id); ?>" class="form-control" required>
                                             <option value=""><?php _e('Seçiniz...', 'bkm-aksiyon-takip'); ?></option>
                                             <?php
-                                            $users = get_users(['role__in' => ['administrator', 'editor', 'author']]);
+                                            $users = get_users(array('role__in' => array('administrator', 'editor', 'author')));
                                             foreach ($users as $user) {
                                                 echo '<option value="' . esc_attr($user->ID) . '">' . esc_html($user->display_name) . '</option>';
                                             }
@@ -336,21 +336,12 @@ $current_user_id = get_current_user_id();
                                     </div>
                                     <div class="form-group">
                                         <label for="ilerleme_durumu_<?php echo esc_attr($aksiyon->id); ?>"><?php _e('İlerleme Durumu (%)', 'bkm-aksiyon-takip'); ?></label>
-                                        <div class="progress-input-container">
-                                            <input type="range" name="ilerleme_durumu" id="ilerleme_durumu_<?php echo esc_attr($aksiyon->id); ?>" 
-                                                   class="progress-slider" min="0" max="100" value="0" required>
-                                            <div class="progress-display">
-                                                <div class="progress">
-                                                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
-                                                </div>
-                                                <span class="progress-value">0%</span>
-                                            </div>
-                                        </div>
+                                        <input type="number" name="ilerleme_durumu" id="ilerleme_durumu_<?php echo esc_attr($aksiyon->id); ?>" class="form-control" min="0" max="100" value="0" required>
                                     </div>
                                 </div>
                                 <div class="form-actions">
-                                    <button type="submit" class="bkm-btn btn-primary"><?php _e('Kaydet', 'bkm-aksiyon-takip'); ?></button>
-                                    <button type="button" class="bkm-btn btn-secondary gorev-form-iptal"><?php _e('İptal', 'bkm-aksiyon-takip'); ?></button>
+                                    <button type="submit" class="bkm-btn primary"><?php _e('Kaydet', 'bkm-aksiyon-takip'); ?></button>
+                                    <button type="button" class="bkm-btn gorev-form-iptal"><?php _e('İptal', 'bkm-aksiyon-takip'); ?></button>
                                 </div>
                             </form>
                         </div>

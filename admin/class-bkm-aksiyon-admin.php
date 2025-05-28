@@ -6,6 +6,16 @@ class BKM_Aksiyon_Admin {
     public function __construct($plugin_name, $version) {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
+
+        // Admin menüsünü ekle
+        add_action('admin_menu', array($this, 'add_admin_menu'));
+
+        // Admin script ve stillerini yükle
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+
+        // AJAX handler'ları kaydet
+        add_action('wp_ajax_add_gorev', array($this, 'handle_add_gorev'));
+        $this->register_ajax_handlers();
     }
 
     public function add_plugin_admin_menu() {
@@ -85,18 +95,40 @@ class BKM_Aksiyon_Admin {
             return;
         }
 
+        // jQuery ve core
         wp_enqueue_script('jquery');
         wp_enqueue_script('jquery-ui-core');
         wp_enqueue_script('jquery-ui-datepicker');
-        
+
+        // DataTables
+        wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css');
+        wp_enqueue_style('datatables-bootstrap', 'https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap4.min.css');
+        wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js', array('jquery'), null, true);
+        wp_enqueue_script('datatables-bootstrap', 'https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap4.min.js', array('datatables'), null, true);
+
+        // Select2
+        wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css');
         wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', array('jquery'), null, true);
+
+        // Flatpickr
+        wp_enqueue_style('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css');
         wp_enqueue_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', array('jquery'), null, true);
         wp_enqueue_script('flatpickr-tr', 'https://npmcdn.com/flatpickr/dist/l10n/tr.js', array('flatpickr'), null, true);
+
+        // Bootstrap
+        wp_enqueue_style('bootstrap', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css');
         wp_enqueue_script('bootstrap', 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js', array('jquery'), null, true);
-        wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js', array('jquery'), null, true);
-        wp_enqueue_script('datatables-bootstrap', 'https://cdn.datatables.net/1.10.22/js/dataTables.bootstrap4.min.js', array('datatables'), null, true);
-        
-        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/admin.js', array('jquery', 'select2', 'flatpickr', 'bootstrap', 'datatables'), $this->version, true);
+
+        // Font Awesome
+        wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
+        // Plugin'in kendi script ve stilleri - En son yükle
+        wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/admin.css', array(), $this->version, 'all');
+        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/admin.js', 
+            array('jquery', 'datatables', 'datatables-bootstrap', 'select2', 'flatpickr', 'bootstrap'), 
+            $this->version, 
+            true
+        );
 
         wp_localize_script($this->plugin_name, 'bkm_ajax', array(
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -232,5 +264,57 @@ class BKM_Aksiyon_Admin {
         }
 
         wp_send_json_success(array('message' => 'Aksiyon başarıyla silindi.'));
+    }
+
+    /**
+     * Admin script ve stillerini yükle
+     */
+    public function enqueue_admin_assets($hook) {
+        // Sadece plugin sayfalarında yükle
+        if (strpos($hook, 'bkm-aksiyon') === false) {
+            return;
+        }
+
+        // jQuery
+        wp_enqueue_script('jquery');
+
+        // DataTables - Önce yükle
+        wp_register_style('datatables', 'https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css');
+        wp_register_script('datatables', 'https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js', array('jquery'));
+        
+        wp_enqueue_style('datatables');
+        wp_enqueue_script('datatables');
+
+        // Select2
+        wp_register_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css');
+        wp_register_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', array('jquery'));
+        
+        wp_enqueue_style('select2');
+        wp_enqueue_script('select2');
+
+        // Flatpickr
+        wp_register_style('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css');
+        wp_register_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', array('jquery'));
+        wp_register_script('flatpickr-tr', 'https://npmcdn.com/flatpickr/dist/l10n/tr.js', array('flatpickr'));
+        
+        wp_enqueue_style('flatpickr');
+        wp_enqueue_script('flatpickr');
+        wp_enqueue_script('flatpickr-tr');
+
+        // Font Awesome
+        wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
+        // Plugin'in kendi script ve stilleri - En son yükle
+        wp_register_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/bkm-aksiyon-admin.css', array(), $this->version);
+        wp_register_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/admin.js', array('jquery', 'datatables', 'select2', 'flatpickr'), $this->version, true);
+        
+        wp_enqueue_style($this->plugin_name);
+        wp_enqueue_script($this->plugin_name);
+
+        // Admin script'i için gerekli değişkenleri tanımla
+        wp_localize_script($this->plugin_name, 'bkm_admin', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('bkm_admin_nonce')
+        ));
     }
 }
