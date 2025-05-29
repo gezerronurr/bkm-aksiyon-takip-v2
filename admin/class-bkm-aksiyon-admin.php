@@ -84,25 +84,41 @@ class BKM_Aksiyon_Admin {
     }
 
     public function enqueue_scripts($hook) {
-        if (strpos($hook, 'bkm-aksiyon') === false) {
-            return;
-        }
-
-        wp_enqueue_script('jquery');
-        wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', array('jquery'), null, true);
-        wp_enqueue_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', array('jquery'), null, true);
-        wp_enqueue_script('flatpickr-tr', 'https://npmcdn.com/flatpickr/dist/l10n/tr.js', array('flatpickr'), null, true);
-        wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js', array('jquery'), null, true);
-        
-        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/admin.js', array('jquery', 'select2', 'flatpickr', 'datatables'), $this->version, true);
-
-        wp_localize_script($this->plugin_name, 'bkm_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('bkm_ajax_nonce'),
-            'current_date' => $this->current_date,
-            'current_user' => $this->current_user_login
-        ));
+    if (strpos($hook, 'bkm-aksiyon') === false) {
+        return;
     }
+
+    // jQuery
+    wp_enqueue_script('jquery');
+    
+    // DataTables - CDN yerine WordPress ile gelen jQuery UI kullanılsın
+    wp_enqueue_script('jquery-ui-core');
+    wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js', array('jquery'), '1.11.5', true);
+    wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css');
+    
+    // Select2
+    wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', array('jquery'), '4.1.0', true);
+    wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css');
+    
+    // Flatpickr
+    wp_enqueue_script('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr', array('jquery'), null, true);
+    wp_enqueue_script('flatpickr-tr', 'https://npmcdn.com/flatpickr/dist/l10n/tr.js', array('flatpickr'), null, true);
+    wp_enqueue_style('flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css');
+
+    // Font Awesome
+    wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+    
+    // Plugin CSS ve JS
+    wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/admin.css', array(), $this->version, 'all');
+    wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/admin.js', array('jquery', 'datatables', 'select2', 'flatpickr'), $this->version, true);
+
+    wp_localize_script($this->plugin_name, 'bkm_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('bkm_ajax_nonce'),
+        'current_date' => $this->current_date,
+        'current_user' => $this->current_user_login
+    ));
+}
 
     public function register_ajax_handlers() {
         // Aksiyon işlemleri

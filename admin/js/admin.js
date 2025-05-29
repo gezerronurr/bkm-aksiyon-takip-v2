@@ -2,35 +2,132 @@ jQuery(document).ready(function($) {
     const currentDate = '2025-05-28 14:23:39'; // UTC zaman bilgisi
     const currentUserLogin = 'gezerronurr';
 
-    // Form submit işlemi sırasında sayfa yönlendirme kontrolünü devre dışı bırak
-    window.onbeforeunload = null;
-
-    // Select2 başlatma
-    initializeSelect2();
-    
-    function initializeSelect2() {
-        $('.select2').select2({
+    // Görev formu initialize
+    function initializeGorevForm($form) {
+        // Select2
+        $form.find('.select2').select2({
             width: '100%',
-            placeholder: 'Seçiniz...',
-            allowClear: true,
-            language: {
-                noResults: function() {
-                    return 'Sonuç bulunamadı';
-                }
-            }
-        }).on('select2:select', function(e) {
-            $(this).trigger('change');
+            dropdownParent: $form.closest('.gorev-form-dropdown'),
+            placeholder: 'Seçiniz...'
+        });
+
+        // Datepicker
+        $form.find('.datepicker').flatpickr({
+            dateFormat: "Y-m-d",
+            locale: "tr",
+            allowInput: true,
+            minDate: "today",
+            defaultDate: "today"
         });
     }
 
-    // DatePicker başlatma
-    $('.datepicker').flatpickr({
-        dateFormat: "Y-m-d",
-        locale: "tr",
-        allowInput: true,
-        minDate: "today",
-        defaultDate: "today"
+    // Görev ekleme toggle işlevi
+    $(document).on('click', '.gorev-ekle-toggle', function(e) {
+        e.preventDefault();
+        console.log('Görev Ekle butonuna tıklandı');
+        
+        const aksiyonId = $(this).data('aksiyon-id');
+        console.log('Aksiyon ID:', aksiyonId);
+        
+        const currentRow = $(this).closest('tr');
+        const formRow = $('#gorev-form-' + aksiyonId);
+        
+        // Diğer açık formları kapat
+        $('.gorev-form-row').not(formRow).each(function() {
+            const $this = $(this);
+            $this.find('.gorev-form-dropdown').slideUp(300, function() {
+                $this.removeClass('active').hide();
+            });
+        });
+        
+        // Seçilen formu toggle et
+        if (formRow.hasClass('active')) {
+            // Form açıksa kapat
+            formRow.find('.gorev-form-dropdown').slideUp(300, function() {
+                formRow.removeClass('active').hide();
+            });
+        } else {
+            // Form kapalıysa aç
+            formRow.show();
+            formRow.addClass('active');
+            formRow.find('.gorev-form-dropdown').slideDown(300, function() {
+                // Form tamamen açıldıktan sonra form elemanlarını initialize et
+                initializeGorevForm(formRow.find('form'));
+            });
+        }
     });
+
+    // İptal butonuna tıklandığında
+    $(document).on('click', '.gorev-iptal', function(e) {
+        e.preventDefault();
+        const formRow = $(this).closest('.gorev-form-row');
+        formRow.find('.gorev-form-dropdown').slideUp(300, function() {
+            formRow.removeClass('active').hide();
+        });
+    });
+
+    // Form submit işlemi
+    $(document).on('submit', '.gorev-ekle-form', function(e) {
+        e.preventDefault();
+        
+        const $form = $(this);
+        const aksiyonId = $form.data('aksiyon-id');
+        
+        const formData = {
+            action: 'add_gorev',
+            nonce: $form.find('#gorev_nonce').val(),
+            aksiyon_id: aksiyonId,
+            gorev_icerik: $form.find('textarea[name="gorev_icerik"]').val(),
+            sorumlu_kisi: $form.find('select[name="sorumlu_kisi"]').val(),
+            hedef_tarih: $form.find('input[name="hedef_tarih"]').val(),
+            ilerleme_durumu: 0
+        };
+
+        // Form validasyonu
+        if (!formData.gorev_icerik || !formData.sorumlu_kisi || !formData.hedef_tarih) {
+            showNotification('error', 'Lütfen tüm alanları doldurun!');
+            return;
+        }
+
+        $.ajax({
+            url: bkm_ajax.ajax_url,
+            type: 'POST',
+            data: formData,
+            beforeSend: function() {
+                if (typeof showLoader === 'function') showLoader();
+            },
+            success: function(response) {
+                if (response.success) {
+                    showNotification('success', 'Görev başarıyla eklendi!');
+                    $form[0].reset();
+                    $form.closest('.gorev-form-row').removeClass('active').hide();
+                    location.reload();
+                } else {
+                    showNotification('error', response.data.message || 'Bir hata oluştu!');
+                }
+            },
+            error: function() {
+                showNotification('error', 'Sunucu hatası oluştu!');
+            },
+            complete: function() {
+                if (typeof hideLoader === 'function') hideLoader();
+            }
+        });
+    });
+
+    // Dışarı tıklandığında açık formu kapat
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.gorev-form-row, .gorev-ekle-toggle').length) {
+            $('.gorev-form-row.active').each(function() {
+                const $this = $(this);
+                $this.find('.gorev-form-dropdown').slideUp(300, function() {
+                    $this.removeClass('active').hide();
+                });
+            });
+        }
+    });
+});
+
 
     // Önem derecesi seçimi değiştiğinde görsel güncelleme
     $('#onem_derecesi').on('change', function() {
@@ -66,27 +163,46 @@ jQuery(document).ready(function($) {
         $('.progress-value').text(value + '%');
     });
 
-// Görev ekleme toggle işlevi - Güncellenmiş hali
-$(document).on('click', '.gorev-ekle-toggle', function(e) {
-    e.preventDefault();
-    const aksiyonId = $(this).data('aksiyon-id');
-    const formRow = $(`#gorev-form-${aksiyonId}`);
-    const formDropdown = formRow.find('.gorev-form-dropdown');
-    
-    // Diğer açık formları kapat
-    $('.gorev-form-dropdown').not(formDropdown).slideUp();
-    $('.gorev-form-row').not(formRow).removeClass('active');
-    
-    // Seçilen formun görünürlüğünü toggle et
-    formDropdown.slideToggle();
-    formRow.toggleClass('active');
-    
-    // Select2'yi yeniden initialize et
-    formRow.find('.select2').select2({
-        width: '100%',
-        dropdownParent: formRow
+// Görev ekleme toggle işlevi
+    $(document).on('click', '.gorev-ekle-toggle', function(e) {
+        e.preventDefault();
+        console.log('Görev Ekle butonuna tıklandı');
+        
+        const aksiyonId = $(this).data('aksiyon-id');
+        console.log('Aksiyon ID:', aksiyonId);
+        
+        const currentRow = $(this).closest('tr');
+        const formRow = currentRow.next('.gorev-form-row');
+        
+        console.log('Form Row bulundu:', formRow.length > 0);
+
+        // Diğer açık formları kapat
+        $('.gorev-form-dropdown').not(formRow.find('.gorev-form-dropdown')).slideUp();
+        $('.gorev-form-row').not(formRow).removeClass('active');
+        
+        // Seçilen formun görünürlüğünü toggle et
+        formRow.toggleClass('active');
+        formRow.find('.gorev-form-dropdown').slideToggle();
+
+        // Form görünür olduğunda select2 ve datepicker'ı initialize et
+        if (formRow.hasClass('active')) {
+            // Select2'yi yeniden initialize et
+            formRow.find('.select2').select2({
+                width: '100%',
+                dropdownParent: formRow
+            });
+
+            // Datepicker'ı yeniden initialize et
+            formRow.find('.datepicker').flatpickr({
+                dateFormat: "Y-m-d",
+                locale: "tr",
+                allowInput: true,
+                minDate: "today",
+                defaultDate: "today"
+            });
+        }
     });
-});
+
 
 // İptal butonuna tıklandığında
 $(document).on('click', '.gorev-iptal', function(e) {
@@ -278,18 +394,23 @@ $(document).on('click', '.gorev-iptal', function(e) {
     }
 
     // DataTables başlatma
-    if ($('#aksiyonlar-table').length) {
-        $('#aksiyonlar-table').DataTable({
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Turkish.json'
-            },
-            pageLength: 25,
-            order: [[0, 'desc']],
-            responsive: true,
-            drawCallback: function() {
-                initializeSelect2();
-            }
-        });
+    if ($.fn.DataTable && $('#aksiyonlar-table').length) {
+        try {
+            $('#aksiyonlar-table').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Turkish.json'
+                },
+                pageLength: 25,
+                order: [[0, 'desc']],
+                responsive: true,
+                initComplete: function() {
+                    console.log('DataTable initialized');
+                    initializeSelect2();
+                }
+            });
+        } catch (error) {
+            console.error('DataTables initialization error:', error);
+        }
     }
 
     // Yükleniyor göstergesi

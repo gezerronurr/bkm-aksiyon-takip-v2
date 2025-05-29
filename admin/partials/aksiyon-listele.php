@@ -241,68 +241,32 @@ $current_user_login = 'gezerronurr';
                         </td>
                         <td>
                             <div class="btn-group">
-                                <a href="<?php echo admin_url('admin.php?page=bkm-aksiyon-ekle&id=' . $aksiyon->id); ?>" 
-                                   class="bkm-btn btn-info btn-sm" 
-                                   title="Düzenle">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button type="button" 
-                                        class="bkm-btn btn-danger btn-sm delete-aksiyon" 
-                                        data-id="<?php echo $aksiyon->id; ?>" 
-                                        title="Sil">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                <button type="button"
-                                        class="bkm-btn btn-primary btn-sm gorev-ekle-toggle"
-                                        data-aksiyon-id="<?php echo $aksiyon->id; ?>"
-                                        title="Görev Ekle">
-                                    <i class="fas fa-tasks"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Görev Ekleme Dropdown Form -->
-                    <tr class="gorev-form-row" id="gorev-form-<?php echo $aksiyon->id; ?>">
-                        <td colspan="9">
-                            <div class="gorev-form-dropdown">
-                                <form class="gorev-ekle-form" data-aksiyon-id="<?php echo $aksiyon->id; ?>">
-                                    <?php wp_nonce_field('bkm_gorev_nonce', 'gorev_nonce'); ?>
-                                    <div class="form-grid">
-                                        <div class="form-group">
-                                            <label for="gorev_icerik_<?php echo $aksiyon->id; ?>">Görevin İçeriği:</label>
-                                            <textarea name="gorev_icerik" id="gorev_icerik_<?php echo $aksiyon->id; ?>" rows="3" class="form-control" required></textarea>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="sorumlu_kisi_<?php echo $aksiyon->id; ?>">Sorumlu Kişi:</label>
-                                            <select name="sorumlu_kisi" id="sorumlu_kisi_<?php echo $aksiyon->id; ?>" class="form-control select2" required>
-                                                <option value="">Seçiniz...</option>
-                                                <?php
-                                                $users = get_users(['role__in' => ['administrator', 'editor', 'author']]);
-                                                foreach ($users as $user) {
-                                                    echo '<option value="' . esc_attr($user->ID) . '">' . esc_html($user->display_name) . '</option>';
-                                                }
-                                                ?>
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="hedef_tarih_<?php echo $aksiyon->id; ?>">Hedef Tarih:</label>
-                                            <input type="date" name="hedef_tarih" id="hedef_tarih_<?php echo $aksiyon->id; ?>" class="form-control datepicker" required>
-                                        </div>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="submit" class="bkm-btn btn-primary">
-                                            <i class="fas fa-save"></i> Kaydet
-                                        </button>
-                                        <button type="button" class="bkm-btn btn-secondary gorev-iptal">
-                                            <i class="fas fa-times"></i> İptal
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                <?php } // foreach döngüsünün sonu ?>
+        <a href="<?php echo admin_url('admin.php?page=bkm-aksiyon-ekle&id=' . $aksiyon->id); ?>" 
+           class="bkm-btn btn-info btn-sm" 
+           title="Düzenle">
+            <i class="fas fa-edit"></i>
+        </a>
+        <button type="button" 
+                class="bkm-btn btn-danger btn-sm delete-aksiyon" 
+                data-id="<?php echo $aksiyon->id; ?>" 
+                title="Sil">
+            <i class="fas fa-trash"></i>
+        </button>
+        <button type="button"
+                class="bkm-btn btn-primary btn-sm gorev-ekle-toggle"
+                data-aksiyon-id="<?php echo $aksiyon->id; ?>"
+                title="Görev Ekle">
+            <i class="fas fa-tasks"></i>
+        </button>
+    </div>
+</td>
+</tr>
+<?php 
+// Görev ekleme formu partial'ını yükle
+                    $aksiyon_id = $aksiyon->id;
+                    include plugin_dir_path(__FILE__) . 'gorev-ekle-form.php';
+                }
+                ?>
             </tbody>
         </table>
     </div>
