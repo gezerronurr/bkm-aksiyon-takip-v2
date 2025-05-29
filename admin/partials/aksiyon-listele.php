@@ -6,6 +6,8 @@ if (!defined('ABSPATH')) {
 
 global $wpdb;
 $current_user_id = get_current_user_id();
+$current_date = '2025-05-29 06:01:18'; // UTC zaman bilgisi
+$current_user_login = 'gezerronurr';
 ?>
 
 <div class="wrap">
@@ -28,16 +30,10 @@ $current_user_id = get_current_user_id();
     <!-- İstatistik Kartları -->
     <div class="stats-container">
         <?php
-        // Toplam aksiyon sayısı
+        // İstatistik sorgularını gerçekleştir
         $total_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bkm_aksiyonlar");
-        
-        // Açık aksiyon sayısı
         $open_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bkm_aksiyonlar WHERE ilerleme_durumu < 100");
-        
-        // Acil aksiyon sayısı
         $urgent_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}bkm_aksiyonlar WHERE onem_derecesi = 1 AND ilerleme_durumu < 100");
-        
-        // Benim aksiyonlarım
         $my_tasks = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}bkm_aksiyonlar WHERE FIND_IN_SET(%d, sorumlular) AND ilerleme_durumu < 100",
             $current_user_id
@@ -157,7 +153,7 @@ $current_user_id = get_current_user_id();
             </thead>
             <tbody>
                 <?php
-                // Filtre parametrelerini al
+                // Filtre parametrelerini al ve sorguyu oluştur
                 $where = array("1=1");
                 $where_values = array();
 
@@ -184,17 +180,16 @@ $current_user_id = get_current_user_id();
                     }
                 }
 
-                // SQL sorgusunu oluştur - Sorumlular için GROUP_CONCAT eklendi
                 $query = $wpdb->prepare(
                     "SELECT a.*, k.kategori_adi, u.display_name as tanimlayan_adi,
                             GROUP_CONCAT(DISTINCT usr.display_name ORDER BY usr.display_name ASC SEPARATOR ', ') as sorumlular_liste
-                    FROM {$wpdb->prefix}bkm_aksiyonlar a
-                    LEFT JOIN {$wpdb->prefix}bkm_kategoriler k ON a.kategori_id = k.id
-                    LEFT JOIN {$wpdb->users} u ON a.tanimlayan_id = u.ID
-                    LEFT JOIN {$wpdb->users} usr ON FIND_IN_SET(usr.ID, a.sorumlular)
-                    WHERE " . implode(' AND ', $where) . "
-                    GROUP BY a.id
-                    ORDER BY a.id DESC",
+                     FROM {$wpdb->prefix}bkm_aksiyonlar a
+                     LEFT JOIN {$wpdb->prefix}bkm_kategoriler k ON a.kategori_id = k.id
+                     LEFT JOIN {$wpdb->users} u ON a.tanimlayan_id = u.ID
+                     LEFT JOIN {$wpdb->users} usr ON FIND_IN_SET(usr.ID, a.sorumlular)
+                     WHERE " . implode(' AND ', $where) . "
+                     GROUP BY a.id
+                     ORDER BY a.id DESC",
                     $where_values
                 );
 
@@ -202,7 +197,6 @@ $current_user_id = get_current_user_id();
 
                 foreach ($aksiyonlar as $aksiyon) {
                     // Önem derecesi sınıfı
-                    $onem_class = '';
                     switch ($aksiyon->onem_derecesi) {
                         case 1:
                             $onem_class = 'status-badge status-active';
@@ -216,10 +210,12 @@ $current_user_id = get_current_user_id();
                             $onem_class = 'status-badge status-inactive';
                             $onem_text = 'Düşük';
                             break;
+                        default:
+                            $onem_class = 'status-badge status-inactive';
+                            $onem_text = 'Belirsiz';
                     }
 
                     // İlerleme durumu sınıfı
-                    $ilerleme_class = '';
                     if ($aksiyon->ilerleme_durumu >= 100) {
                         $ilerleme_class = 'status-badge status-active';
                     } elseif ($aksiyon->ilerleme_durumu >= 50) {
@@ -228,7 +224,6 @@ $current_user_id = get_current_user_id();
                         $ilerleme_class = 'status-badge status-inactive';
                     }
 
-                    // Sorumluların listesini hazırla
                     $sorumlular = $aksiyon->sorumlular_liste ? $aksiyon->sorumlular_liste : '-';
                     ?>
                     <tr>
@@ -257,12 +252,57 @@ $current_user_id = get_current_user_id();
                                         title="Sil">
                                     <i class="fas fa-trash"></i>
                                 </button>
+                                <button type="button"
+                                        class="bkm-btn btn-primary btn-sm gorev-ekle-toggle"
+                                        data-aksiyon-id="<?php echo $aksiyon->id; ?>"
+                                        title="Görev Ekle">
+                                    <i class="fas fa-tasks"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
-                    <?php
-                }
-                ?>
+
+                    <!-- Görev Ekleme Dropdown Form -->
+                    <tr class="gorev-form-row" id="gorev-form-<?php echo $aksiyon->id; ?>">
+                        <td colspan="9">
+                            <div class="gorev-form-dropdown">
+                                <form class="gorev-ekle-form" data-aksiyon-id="<?php echo $aksiyon->id; ?>">
+                                    <?php wp_nonce_field('bkm_gorev_nonce', 'gorev_nonce'); ?>
+                                    <div class="form-grid">
+                                        <div class="form-group">
+                                            <label for="gorev_icerik_<?php echo $aksiyon->id; ?>">Görevin İçeriği:</label>
+                                            <textarea name="gorev_icerik" id="gorev_icerik_<?php echo $aksiyon->id; ?>" rows="3" class="form-control" required></textarea>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sorumlu_kisi_<?php echo $aksiyon->id; ?>">Sorumlu Kişi:</label>
+                                            <select name="sorumlu_kisi" id="sorumlu_kisi_<?php echo $aksiyon->id; ?>" class="form-control select2" required>
+                                                <option value="">Seçiniz...</option>
+                                                <?php
+                                                $users = get_users(['role__in' => ['administrator', 'editor', 'author']]);
+                                                foreach ($users as $user) {
+                                                    echo '<option value="' . esc_attr($user->ID) . '">' . esc_html($user->display_name) . '</option>';
+                                                }
+                                                ?>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="hedef_tarih_<?php echo $aksiyon->id; ?>">Hedef Tarih:</label>
+                                            <input type="date" name="hedef_tarih" id="hedef_tarih_<?php echo $aksiyon->id; ?>" class="form-control datepicker" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="submit" class="bkm-btn btn-primary">
+                                            <i class="fas fa-save"></i> Kaydet
+                                        </button>
+                                        <button type="button" class="bkm-btn btn-secondary gorev-iptal">
+                                            <i class="fas fa-times"></i> İptal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <?php } // foreach döngüsünün sonu ?>
             </tbody>
         </table>
     </div>
